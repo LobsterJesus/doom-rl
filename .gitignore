@@ -4,5 +4,5 @@
 !README.md
 
 !vizdoom/
-!vizdoom/*.cfg
+!vizdoom/*
 !play_doom.py

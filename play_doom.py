@@ -17,17 +17,12 @@ def setup_scenario_basic():
 
 environment, actions = setup_scenario_basic()
 
+def test_scenario(environment):
+    for i in range(10):
+        environment.new_episode()
+        while not environment.is_episode_finished():
+            action = random.choice(actions)
+            reward = environment.make_action(action)
+            time.sleep(0.02)
 
-episodes = 10
-for i in range(episodes):
-    environment.new_episode()
-    while not environment.is_episode_finished():
-        state = environment.get_state()
-        img = state.screen_buffer
-        misc = state.game_variables
-        action = random.choice(actions)
-        print(action)
-        reward = environment.make_action(action)
-        print("\treward:", reward)
-        time.sleep(0.02)
-    print("Result:", environment.get_total_reward())
+test_scenario(environment)
