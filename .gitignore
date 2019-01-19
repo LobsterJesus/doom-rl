@@ -1,0 +1,8 @@
+/*
+
+!.gitignore
+!README.md
+
+!vizdoom/
+!vizdoom/*.cfg
+!play_doom.py
