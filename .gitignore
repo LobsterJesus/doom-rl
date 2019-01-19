@@ -1,8 +1,6 @@
-/*
-
-!.gitignore
-!README.md
-
-!vizdoom/
-!vizdoom/*
-!play_doom.py
+.idea
+test/
+debug/
+venv/
+__pycache__/
+_vizdoom.ini
