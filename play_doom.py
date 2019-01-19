@@ -4,6 +4,7 @@ from PIL import Image
 import random
 import time
 import frame
+from frame import FrameStack
 from skimage import img_as_ubyte
 
 
@@ -40,5 +41,7 @@ def test_scenario(environment):
                 img = img_as_ubyte(frame.preprocess(img))
                 save_test_image(img)
                 first = False
+
+stack = FrameStack(size=4)
 
 test_scenario(environment)
