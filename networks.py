@@ -13,6 +13,7 @@ class DeepQNetworkBatch:
             self.inputs = tf.placeholder(tf.float32, [None, *state_size], name="inputs")
             self.actions = tf.placeholder(tf.float32, [None, 3], name="actions")
             self.q_target = tf.placeholder(tf.float32, [None], name="target")
+            self.reward = tf.placeholder(tf.float32, (), name="reward")
 
             self.conv1 = tf.layers.conv2d(
                 inputs=self.inputs,

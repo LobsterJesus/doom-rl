@@ -46,7 +46,6 @@ def test_scenario(environment):
                 first = False
 
 
-
 stack = FrameStack(size=4)
 
 environment, actions_available = setup_scenario_basic()
@@ -57,11 +56,9 @@ num_actions = len(actions_available)
 dqn = DeepQNetworkBatch([84, 84, 4], num_actions, 0.0002)
 
 
-
-
 def learn_online(environment, num_episodes):
     with tf.Session() as session:
-        agent = Agent(dqn, session, actions_available)
+        agent = Agent(dqn, session, actions_available, board_path='debug/tensorboard/online/1')
         session.run(tf.global_variables_initializer())
         environment.init()
 
@@ -86,7 +83,6 @@ def learn_online(environment, num_episodes):
                     t = 100
                     reward_total = np.sum(rewards)
                     print('episode {}: total reward: {}, loss: {:.4f}'.format(e, reward_total, agent.loss))
-
                 else:
                     stack.add(environment.get_state().screen_buffer)
                     next_state = stack.as_state()
