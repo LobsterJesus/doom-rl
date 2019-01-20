@@ -57,6 +57,8 @@ num_actions = len(actions_available)
 dqn = DeepQNetworkBatch([84, 84, 4], num_actions, 0.0002)
 
 
+
+
 def learn_online(environment, num_episodes):
     with tf.Session() as session:
         agent = Agent(dqn, session, actions_available)
@@ -80,7 +82,7 @@ def learn_online(environment, num_episodes):
                 if done:
                     stack.add(np.zeros((84, 84), dtype=np.int), process=False)
                     next_state = stack.as_state()
-                    agent.train(state, action, reward, next_state, terminal=True)
+                    agent.train(state, action, reward, next_state, t, terminal=True)
                     t = 100
                     reward_total = np.sum(rewards)
                     print('episode {}: total reward: {}, loss: {:.4f}'.format(e, reward_total, agent.loss))
@@ -88,8 +90,10 @@ def learn_online(environment, num_episodes):
                 else:
                     stack.add(environment.get_state().screen_buffer)
                     next_state = stack.as_state()
-                    agent.train(state, action, reward, next_state)
+                    agent.train(state, action, reward, next_state, t)
                     state = next_state
+
+
 
 
 

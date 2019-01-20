@@ -89,3 +89,4 @@ class DeepQNetworkBatch:
             self.q = tf.reduce_sum(tf.multiply(self.output, self.actions), axis=1)
             self.loss = tf.reduce_mean(tf.square(self.q_target - self.q))
             self.optimizer = tf.train.RMSPropOptimizer(self.learning_rate).minimize(self.loss)
+
