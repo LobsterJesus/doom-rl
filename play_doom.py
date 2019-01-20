@@ -127,7 +127,13 @@ def learn_batch(environment, num_episodes):
     replay_memory = init_replay_memory(environment, 1000000, 64)
 
     with tf.Session() as session:
-        agent = Agent(dqn, session, actions_available, board_path='debug/tensorboard/online/2')
+        agent = Agent(
+            dqn,
+            session,
+            actions_available,
+            board_path='debug/tensorboard/batch/1',
+            model_path='debug/models/model_batch.ckpt',
+            restore_model=False)
         session.run(tf.global_variables_initializer())
         environment.init()
 
@@ -160,10 +166,42 @@ def learn_batch(environment, num_episodes):
 
                 agent.train_batch(replay_memory.sample(64), e)
 
-learn_batch(environment, 5000)
-
-
-
-
-
+# learn_batch(environment, 5000)
 #learn_online(environment, 1000000)
+
+
+def play(environment, num_episodes):
+    with tf.Session() as session:
+        agent = Agent(
+            dqn,
+            session,
+            actions_available,
+            model_path='debug/models/model_batch.ckpt',
+            restore_model=True)
+        # session.run(tf.global_variables_initializer())
+        environment.init()
+
+        for e in range(num_episodes):
+            t = 0
+            environment.new_episode()
+            stack.init_new(environment.get_state().screen_buffer)
+            state = stack.as_state()
+
+            while True:
+                t += 1
+                action = agent.get_policy_action(state)
+                environment.make_action(action)
+                done = environment.is_episode_finished()
+
+                if done:
+                    stack.add(np.zeros((84, 84), dtype=np.int), process=False)
+                    time.sleep(1 / 60)
+                    break
+                else:
+                    stack.add(environment.get_state().screen_buffer)
+                    next_state = stack.as_state()
+                    state = next_state
+                    time.sleep(1 / 60)
+
+
+play(environment, 1000)

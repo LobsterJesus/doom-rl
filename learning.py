@@ -54,7 +54,7 @@ class Agent:
 
         targets_dqn = np.array([each for each in q_targets])
 
-        loss, _ = self.session.run(
+        self.loss, _ = self.session.run(
             [self.dqn.loss, self.dqn.optimizer],
             feed_dict={
                 self.dqn.inputs: states,
@@ -72,6 +72,9 @@ class Agent:
         self.tf_writer.add_summary(summary, episode_index)
         self.tf_writer.flush()
 
+        if episode_index % 5 == 0:
+            self.tf_saver.save(self.session, self.model_path)
+
     def record_episode_statistics(self, state, target, action, reward, time_step):
         summary = self.session.run(
             self.merged_summary,
@@ -83,18 +86,26 @@ class Agent:
         self.tf_writer.add_summary(summary, time_step)
         self.tf_writer.flush()
 
-    def __init__(self, dqn, session, actions, epsilon=0.1, gamma=0.95, board_path='debug/tensorboard/online/1'):
+    def __init__(
+        self, dqn, session, actions, epsilon=0.1, gamma=0.95, restore_model=True,
+        board_path='debug/tensorboard/online/1', model_path='debug/models/model.ckpt'):
+
         self.actions = actions
         self.epsilon = epsilon
         self.gamma = gamma
         self.dqn = dqn
         self.session = session
         self.loss = 0
+        self.model_path = model_path
 
+        self.tf_saver = tf.train.Saver()
         tf.summary.scalar('loss', self.dqn.loss)
         tf.summary.scalar('reward', self.dqn.reward)
         self.merged_summary = tf.summary.merge_all()
         self.tf_writer = tf.summary.FileWriter(board_path)
+
+        if restore_model:
+            self.tf_saver.restore(self.session, self.model_path)
 
 
 class ReplayMemory:
