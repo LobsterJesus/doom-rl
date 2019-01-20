@@ -4,9 +4,9 @@ import numpy as np
 
 
 def preprocess(frame):
+    frame = frame[105:319]  # crop
     frame = frame / 255.0  # normalize
     frame = transform.resize(frame, [84, 84])  # resize
-    frame = frame[26:70]  # crop
     return frame
 
 
