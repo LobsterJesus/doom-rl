@@ -14,6 +14,9 @@ class Agent:
         else:
             return random.choice(self.actions)
 
+    def get_q_values_batch(self, state_batch):
+        return self.session.run(self.dqn.output, feed_dict={self.dqn.inputs: state_batch})
+
     def train(self, state, action, reward, next_state, time_step, terminal=False):
         q_values = self.session.run(self.dqn.output, feed_dict={self.dqn.inputs: state.reshape((1, *state.shape))})
         q_values_next = self.session.run(self.dqn.output, feed_dict={self.dqn.inputs: next_state.reshape((1, *next_state.shape))})
@@ -32,6 +35,42 @@ class Agent:
                 self.dqn.inputs: state.reshape((1, *state.shape)),
                 self.dqn.q_target: target,
                 self.dqn.actions: [action]})
+
+    def train_batch(self, batch, episode_index):
+        states = np.array([sample[0] for sample in batch], ndmin=3)
+        actions = np.array([sample[1] for sample in batch])
+        rewards = np.array([sample[2] for sample in batch])
+        next_states = np.array([sample[3] for sample in batch], ndmin=3)
+        terminals = np.array([sample[4] for sample in batch])
+        q_values_next_state = self.get_q_values_batch(next_states)
+        q_targets = []
+
+        for i in range(0, len(batch)):
+            done = terminals[i]
+            if done:
+                q_targets.append(rewards[i])
+            else:
+                q_targets.append(rewards[i] + self.gamma * np.max(q_values_next_state[i]))
+
+        targets_dqn = np.array([each for each in q_targets])
+
+        loss, _ = self.session.run(
+            [self.dqn.loss, self.dqn.optimizer],
+            feed_dict={
+                self.dqn.inputs: states,
+                self.dqn.q_target: targets_dqn,
+                self.dqn.actions: actions})
+
+        summary = self.session.run(
+            self.merged_summary,
+            feed_dict={
+                self.dqn.reward: 0,
+                self.dqn.inputs: states,
+                self.dqn.q_target: targets_dqn,
+                self.dqn.actions: actions})
+
+        self.tf_writer.add_summary(summary, episode_index)
+        self.tf_writer.flush()
 
     def record_episode_statistics(self, state, target, action, reward, time_step):
         summary = self.session.run(
@@ -68,10 +107,10 @@ class ReplayMemory:
 
     def sample(self, sample_size):
         index = np.random.choice(
-            np.arange(sample_size),
-            size=len(self.data),
+            np.arange(len(self.data)),
+            size=sample_size,
             replace=False)
-        return [self.buffer[i] for i in index]
+        return [self.data[i] for i in index]
 
     def __init__(self, size):
         self.size = size
