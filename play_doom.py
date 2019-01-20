@@ -10,6 +10,7 @@ import frame
 from frame import FrameStack
 from networks import DeepQNetworkBatch
 from learning import Agent
+from learning import ReplayMemory
 
 def setup_scenario_basic():
     game = DoomGame()
@@ -90,7 +91,38 @@ def learn_online(environment, num_episodes):
                     state = next_state
 
 
+def init_replay_memory(environment, num_episodes):
+    memory = ReplayMemory(1000000)
+    environment.init()
 
+    for e in range(num_episodes):
+        t = 0
+        environment.new_episode()
+        stack.init_new(environment.get_state().screen_buffer)
+        state = stack.as_state()
 
+        while t < 100:
+            t += 1
+            action = random.choice(actions_available)
+            reward = environment.make_action(action)
+            done = environment.is_episode_finished()
 
-learn_online(environment, 1000000)
+            if done:
+                stack.add(np.zeros((84, 84), dtype=np.int), process=False)
+                next_state = stack.as_state()
+                memory.add((state, action, reward, next_state, done))
+                t = 100
+            else:
+                stack.add(environment.get_state().screen_buffer)
+                next_state = stack.as_state()
+                memory.add((state, action, reward, next_state, done))
+                state = next_state
+
+    return memory
+
+replay_memory = init_replay_memory(environment, 100)
+print(len(replay_memory.data))
+
+#def learn_batch(environment, num_episodes):
+
+#learn_online(environment, 1000000)

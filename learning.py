@@ -1,6 +1,7 @@
 import numpy as np
 import random
 import tensorflow as tf
+from collections import deque
 
 
 class Agent:
@@ -55,3 +56,23 @@ class Agent:
         tf.summary.scalar('reward', self.dqn.reward)
         self.merged_summary = tf.summary.merge_all()
         self.tf_writer = tf.summary.FileWriter(board_path)
+
+
+class ReplayMemory:
+
+    def add(self, tuple):
+        """
+        :param tuple: (state, action, reward, next state, terminal)
+        """
+        self.data.append(tuple)
+
+    def sample(self, sample_size):
+        index = np.random.choice(
+            np.arange(sample_size),
+            size=len(self.data),
+            replace=False)
+        return [self.buffer[i] for i in index]
+
+    def __init__(self, size):
+        self.size = size
+        self.data = deque(maxlen=size)
