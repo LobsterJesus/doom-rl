@@ -9,6 +9,7 @@ import tensorflow as tf
 import frame
 from frame import FrameStack
 from networks import DeepQNetworkBatch
+from networks import DeepQNetworkSimple
 from learning import Agent
 from learning import ReplayMemory
 
@@ -54,12 +55,19 @@ environment, actions_available = setup_scenario_basic()
 #exit(1)
 
 num_actions = len(actions_available)
-dqn = DeepQNetworkBatch([84, 84, 4], num_actions, 0.0002)
+
 
 
 def learn_online(environment, num_episodes):
+    dqn = DeepQNetworkSimple([84, 84, 4], num_actions, 0.0002)
     with tf.Session() as session:
-        agent = Agent(dqn, session, actions_available, board_path='debug/tensorboard/online/1')
+        agent = Agent(
+            dqn,
+            session,
+            actions_available,
+            board_path='debug/tensorboard/online/3',
+            model_path='debug/models/model_simple.ckpt',
+            restore_model=False)
         session.run(tf.global_variables_initializer())
         environment.init()
 
@@ -124,6 +132,7 @@ def init_replay_memory(environment, replay_memory_capacity, num_samples):
 
 
 def learn_batch(environment, num_episodes):
+    dqn = DeepQNetworkBatch([84, 84, 4], num_actions, 0.0002)
     replay_memory = init_replay_memory(environment, 1000000, 64)
 
     with tf.Session() as session:
@@ -167,9 +176,9 @@ def learn_batch(environment, num_episodes):
                 agent.train_batch(replay_memory.sample(64), e)
 
 # learn_batch(environment, 5000)
-#learn_online(environment, 1000000)
+learn_online(environment, 1000)
 
-
+'''
 def play(environment, num_episodes):
     with tf.Session() as session:
         agent = Agent(
@@ -203,5 +212,5 @@ def play(environment, num_episodes):
                     state = next_state
                     time.sleep(1 / 60)
 
-
 play(environment, 1000)
+'''

@@ -103,6 +103,7 @@ class Agent:
         tf.summary.scalar('reward', self.dqn.reward)
         self.merged_summary = tf.summary.merge_all()
         self.tf_writer = tf.summary.FileWriter(board_path)
+        
 
         if restore_model:
             self.tf_saver.restore(self.session, self.model_path)
