@@ -2,6 +2,7 @@ import numpy as np
 import random
 import tensorflow as tf
 from collections import deque
+from datetime import datetime
 
 
 class Agent:
@@ -86,9 +87,14 @@ class Agent:
         self.tf_writer.add_summary(summary, time_step)
         self.tf_writer.flush()
 
+    def setup_logger(self, root_logdir):
+        now = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+        logdir = "{}/run-{}/".format(root_logdir, now)
+        return tf.summary.FileWriter(logdir)
+
     def __init__(
         self, dqn, session, actions, epsilon=0.1, gamma=0.95, restore_model=True,
-        board_path='debug/tensorboard/online/1', model_path='debug/models/model.ckpt'):
+        board_directory='default', model_path='debug/models/model.ckpt'):
 
         self.actions = actions
         self.epsilon = epsilon
@@ -102,8 +108,9 @@ class Agent:
         tf.summary.scalar('loss', self.dqn.loss)
         tf.summary.scalar('reward', self.dqn.reward)
         self.merged_summary = tf.summary.merge_all()
-        self.tf_writer = tf.summary.FileWriter(board_path)
-        
+        # start tensorboard using
+        # tensorboard --logdir debug/tf_logs/[agent]
+        self.tf_writer = self.setup_logger('debug/tf_logs/' + board_directory)
 
         if restore_model:
             self.tf_saver.restore(self.session, self.model_path)

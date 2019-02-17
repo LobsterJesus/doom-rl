@@ -57,7 +57,6 @@ environment, actions_available = setup_scenario_basic()
 num_actions = len(actions_available)
 
 
-
 def learn_online(environment, num_episodes):
     dqn = DeepQNetworkSimple([84, 84, 4], num_actions, 0.0002)
     with tf.Session() as session:
@@ -65,7 +64,7 @@ def learn_online(environment, num_episodes):
             dqn,
             session,
             actions_available,
-            board_path='debug/tensorboard/online/3',
+            board_directory='simple',
             model_path='debug/models/model_simple.ckpt',
             restore_model=False)
         session.run(tf.global_variables_initializer())
@@ -140,7 +139,7 @@ def learn_batch(environment, num_episodes):
             dqn,
             session,
             actions_available,
-            board_path='debug/tensorboard/batch/1',
+            board_directory='batch',
             model_path='debug/models/model_batch.ckpt',
             restore_model=False)
         session.run(tf.global_variables_initializer())
