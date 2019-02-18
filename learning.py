@@ -3,6 +3,7 @@ import random
 import tensorflow as tf
 from collections import deque
 from datetime import datetime
+from networks import copy_network_variables
 
 
 class Agent:
@@ -62,19 +63,29 @@ class Agent:
                 self.dqn.q_target: targets_dqn,
                 self.dqn.actions: actions})
 
-        summary = self.session.run(
-            self.merged_summary,
-            feed_dict={
-                self.dqn.reward: 0,
-                self.dqn.inputs: states,
-                self.dqn.q_target: targets_dqn,
-                self.dqn.actions: actions})
+        if episode_index % 10 == 0:
+            summary = self.session.run(
+                self.merged_summary,
+                feed_dict={
+                    self.dqn.reward: 0,
+                    self.dqn.inputs: states,
+                    self.dqn.q_target: targets_dqn,
+                    self.dqn.actions: actions})
 
-        self.tf_writer.add_summary(summary, episode_index)
-        self.tf_writer.flush()
+            self.tf_writer.add_summary(summary, episode_index)
+            self.tf_writer.flush()
 
         if episode_index % 5 == 0:
             self.tf_saver.save(self.session, self.model_path)
+
+    def train_batch_target_network(self, batch, episode_index):
+        self.train_batch(batch, episode_index)
+
+        if self.tau >= self.max_tau:
+            update_target = copy_network_variables(self.dqn.name, self.dqn_target.name)
+            self.session.run(update_target)
+            self.tau = 0
+            print("Model updated")
 
     def record_episode_statistics(self, state, target, action, reward, time_step):
         summary = self.session.run(
@@ -93,16 +104,20 @@ class Agent:
         return tf.summary.FileWriter(logdir)
 
     def __init__(
-        self, dqn, session, actions, epsilon=0.1, gamma=0.95, restore_model=True,
+        self, dqn, session, actions,
+        epsilon=0.1, gamma=0.95, restore_model=True, dqn_target=None,
         board_directory='default', model_path='debug/models/model.ckpt'):
 
         self.actions = actions
         self.epsilon = epsilon
         self.gamma = gamma
         self.dqn = dqn
+        self.dqn_target = dqn_target
         self.session = session
         self.loss = 0
         self.model_path = model_path
+        self.tau = 0
+        self.max_tau = 30
 
         self.tf_saver = tf.train.Saver()
         tf.summary.scalar('loss', self.dqn.loss)

@@ -8,6 +8,7 @@ class DeepQNetworkSimple:
         self.state_size = state_size
         self.action_size = action_size
         self.learning_rate = learning_rate
+        self.name = name
 
         with tf.variable_scope(name):
             self.inputs = tf.placeholder(tf.float32, [None, *state_size], name="inputs")
@@ -81,6 +82,7 @@ class DeepQNetworkBatch:
         self.state_size = state_size
         self.action_size = action_size
         self.learning_rate = learning_rate
+        self.name = name
 
         with tf.variable_scope(name):
             self.inputs = tf.placeholder(tf.float32, [None, *state_size], name="inputs")
@@ -172,6 +174,7 @@ class DeepQNetworkDueling:
         self.state_size = state_size
         self.action_size = action_size
         self.learning_rate = learning_rate
+        self.name = name
 
         with tf.variable_scope(name):
             self.inputs = tf.placeholder(tf.float32, [None, *state_size], name="inputs")
@@ -277,4 +280,13 @@ class DeepQNetworkDueling:
             self.q = tf.reduce_sum(tf.multiply(self.output, self.actions), axis=1)
             self.loss = tf.reduce_mean(tf.square(self.q_target - self.q))
             self.optimizer = tf.train.RMSPropOptimizer(self.learning_rate).minimize(self.loss)
+
+
+def copy_network_variables(from_name, to_name):
+    from_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, from_name)
+    to_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, to_name)
+    op_holder = []
+    for from_var, to_var in zip(from_vars, to_vars):
+        op_holder.append(to_var.assign(from_var))
+    return op_holder
 

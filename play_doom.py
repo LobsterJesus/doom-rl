@@ -11,6 +11,7 @@ from frame import FrameStack
 from networks import DeepQNetworkBatch
 from networks import DeepQNetworkSimple
 from networks import DeepQNetworkDueling
+from networks import copy_network_variables
 from learning import Agent
 from learning import ReplayMemory
 
@@ -169,7 +170,8 @@ def learn_batch(environment, actions, stack, num_episodes):
 
 def learn_dueling(environment, actions, stack, num_episodes):
     num_actions = len(actions)
-    dqn = DeepQNetworkDueling([84, 84, 4], num_actions, 0.0002)
+    dqn = DeepQNetworkDueling([84, 84, 4], num_actions, 0.0002, name='DuelingDeepQNetwork')
+    dqn_target = DeepQNetworkDueling([84, 84, 4], num_actions, 0.0002, name='TargetDuelingDeepQNetwork')
     replay_memory = init_replay_memory(environment, actions, stack, 1000000, 64)
 
     with tf.Session() as session:
@@ -177,6 +179,7 @@ def learn_dueling(environment, actions, stack, num_episodes):
             dqn,
             session,
             actions,
+            dqn_target=dqn_target,
             board_directory='dueling',
             model_path='debug/models/model_dueling.ckpt',
             restore_model=False)
@@ -210,7 +213,7 @@ def learn_dueling(environment, actions, stack, num_episodes):
                     replay_memory.add((state, action, reward, next_state, done))
                     state = next_state
 
-                agent.train_batch(replay_memory.sample(64), e)
+                agent.train_batch_target_network(replay_memory.sample(64), e)
 
 
 def play_as_human():
