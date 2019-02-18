@@ -10,11 +10,12 @@ import frame
 from frame import FrameStack
 from networks import DeepQNetworkBatch
 from networks import DeepQNetworkSimple
+from networks import DeepQNetworkDueling
 from learning import Agent
 from learning import ReplayMemory
 
 
-def setup_scenario_basic():
+def setup_scenario_simple():
     game = DoomGame()
     game.load_config("vizdoom/basic.cfg")
     game.set_doom_scenario_path("vizdoom/basic.wad")
@@ -119,14 +120,11 @@ def init_replay_memory(environment, actions, stack, replay_memory_capacity, num_
 
     return memory
 
-# replay_memory = init_replay_memory(environment, 1000000, 64)
-# print(len(replay_memory.data))
-
 
 def learn_batch(environment, actions, stack, num_episodes):
     num_actions = len(actions)
     dqn = DeepQNetworkBatch([84, 84, 4], num_actions, 0.0002)
-    replay_memory = init_replay_memory(environment, 1000000, 64)
+    replay_memory = init_replay_memory(environment, actions, stack, 1000000, 64)
 
     with tf.Session() as session:
         agent = Agent(
@@ -135,6 +133,52 @@ def learn_batch(environment, actions, stack, num_episodes):
             actions,
             board_directory='batch',
             model_path='debug/models/model_batch.ckpt',
+            restore_model=False)
+        session.run(tf.global_variables_initializer())
+        environment.init()
+
+        for e in range(num_episodes):
+            t = 0
+            rewards = []
+            environment.new_episode()
+            stack.init_new(environment.get_state().screen_buffer)
+            state = stack.as_state()
+
+            while t < 100:
+                t += 1
+                action = agent.get_policy_action(state)
+                reward = environment.make_action(action)
+                rewards.append(reward)
+                done = environment.is_episode_finished()
+
+                if done:
+                    stack.add(np.zeros((84, 84), dtype=np.int), process=False)
+                    next_state = stack.as_state()
+                    replay_memory.add((state, action, reward, next_state, done))
+                    t = 100
+                    reward_total = np.sum(rewards)
+                    print('episode {}: total reward: {}, loss: {:.4f}'.format(e, reward_total, agent.loss))
+                else:
+                    stack.add(environment.get_state().screen_buffer)
+                    next_state = stack.as_state()
+                    replay_memory.add((state, action, reward, next_state, done))
+                    state = next_state
+
+                agent.train_batch(replay_memory.sample(64), e)
+
+
+def learn_dueling(environment, actions, stack, num_episodes):
+    num_actions = len(actions)
+    dqn = DeepQNetworkDueling([84, 84, 4], num_actions, 0.0002)
+    replay_memory = init_replay_memory(environment, actions, stack, 1000000, 64)
+
+    with tf.Session() as session:
+        agent = Agent(
+            dqn,
+            session,
+            actions,
+            board_directory='dueling',
+            model_path='debug/models/model_dueling.ckpt',
             restore_model=False)
         session.run(tf.global_variables_initializer())
         environment.init()
@@ -196,15 +240,31 @@ def play_as_human():
 
     game.close()
 
+
+# play_as_human()
+
+
+# SIMPLE
 '''
 stack = FrameStack(size=4)
-environment, actions_available = setup_scenario_basic()
-# learn_batch(environment, 5000)
+environment, actions_available = setup_scenario_simple()
 learn_online(environment, actions_available, stack, 1000)
 '''
 
+'''
+# BATCH
+stack = FrameStack(size=4)
+environment, actions_available = setup_scenario_simple()
+learn_batch(environment, actions_available, stack, 5000)
+'''
 
-play_as_human()
+# DUELING
+stack = FrameStack(size=4)
+environment, actions_available = setup_scenario_simple()
+learn_dueling(environment, actions_available, stack, 5000)
+
+
+
 
 '''
 def play(environment, num_episodes):
