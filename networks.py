@@ -12,7 +12,7 @@ class DeepQNetworkSimple:
 
         with tf.variable_scope(name):
             self.inputs = tf.placeholder(tf.float32, [None, *state_size], name="inputs")
-            self.actions = tf.placeholder(tf.float32, [None, 3], name="actions")
+            self.actions = tf.placeholder(tf.float32, [None, action_size], name="actions")
             self.q_target = tf.placeholder(tf.float32, [None], name="target")
             self.reward = tf.placeholder(tf.float32, (), name="reward")
 
@@ -67,7 +67,7 @@ class DeepQNetworkSimple:
             self.output = tf.layers.dense(
                 inputs=self.fc,
                 kernel_initializer=tf.contrib.layers.xavier_initializer(),
-                units=3,
+                units=action_size,
                 activation=None)
 
             self.q = tf.reduce_sum(tf.multiply(self.output, self.actions), axis=1)
@@ -86,7 +86,7 @@ class DeepQNetworkBatch:
 
         with tf.variable_scope(name):
             self.inputs = tf.placeholder(tf.float32, [None, *state_size], name="inputs")
-            self.actions = tf.placeholder(tf.float32, [None, 3], name="actions")
+            self.actions = tf.placeholder(tf.float32, [None, action_size], name="actions")
             self.q_target = tf.placeholder(tf.float32, [None], name="target")
             self.reward = tf.placeholder(tf.float32, (), name="reward")
 
@@ -159,7 +159,7 @@ class DeepQNetworkBatch:
             self.output = tf.layers.dense(
                 inputs=self.fc,
                 kernel_initializer=tf.contrib.layers.xavier_initializer(),
-                units=3,
+                units=action_size,
                 activation=None)
 
             self.q = tf.reduce_sum(tf.multiply(self.output, self.actions), axis=1)
@@ -178,7 +178,7 @@ class DeepQNetworkDueling:
 
         with tf.variable_scope(name):
             self.inputs = tf.placeholder(tf.float32, [None, *state_size], name="inputs")
-            self.actions = tf.placeholder(tf.float32, [None, 3], name="actions")
+            self.actions = tf.placeholder(tf.float32, [None, action_size], name="actions")
             self.q_target = tf.placeholder(tf.float32, [None], name="target")
             self.reward = tf.placeholder(tf.float32, (), name="reward")
 

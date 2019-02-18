@@ -11,7 +11,6 @@ from frame import FrameStack
 from networks import DeepQNetworkBatch
 from networks import DeepQNetworkSimple
 from networks import DeepQNetworkDueling
-from networks import copy_network_variables
 from learning import Agent
 from learning import ReplayMemory
 
@@ -25,7 +24,36 @@ def setup_scenario_simple():
     right = [0, 1, 0]
     shoot = [0, 0, 1]
     actions = [left, right, shoot]
+    return game, actions
 
+
+def setup_scenario_deadly_corridor():
+    game = DoomGame()
+    game.load_config("vizdoom/deadly_corridor.cfg")
+    game.set_doom_scenario_path("vizdoom/deadly_corridor.wad")
+    game.init()
+    move_left = [1, 0, 0, 0, 0, 0, 0]
+    move_right = [0, 1, 0, 0, 0, 0, 0]
+    attack = [0, 0, 1, 0, 0, 0, 0]
+    move_forward = [0, 0, 0, 1, 0, 0, 0]
+    move_backward = [0, 0, 0, 0, 1, 0, 0]
+    turn_left = [0, 0, 0, 0, 0, 1, 0]
+    turn_right = [0, 0, 0, 0, 0, 0, 1]
+    actions = [move_left, move_right, attack, move_forward, move_backward, turn_left, turn_right]
+    return game, actions
+
+
+def setup_scenario_my_way_home():
+    game = DoomGame()
+    game.load_config("vizdoom/my_way_home.cfg")
+    game.set_doom_scenario_path("vizdoom/my_way_home.wad")
+    game.init()
+    turn_left = [1, 0, 0, 0, 0]
+    turn_right = [0, 1, 0, 0, 0]
+    move_forward = [0, 0, 1, 0, 0]
+    move_left = [0, 0, 0, 1, 0]
+    move_right = [0, 0, 0, 0, 1]
+    actions = [turn_left, turn_right, move_forward, move_left, move_right]
     return game, actions
 
 
@@ -248,11 +276,10 @@ def play_as_human():
 
 
 # SIMPLE
-'''
 stack = FrameStack(size=4)
-environment, actions_available = setup_scenario_simple()
+environment, actions_available = setup_scenario_my_way_home()
 learn_online(environment, actions_available, stack, 1000)
-'''
+
 
 '''
 # BATCH
@@ -261,11 +288,12 @@ environment, actions_available = setup_scenario_simple()
 learn_batch(environment, actions_available, stack, 5000)
 '''
 
+'''
 # DUELING
 stack = FrameStack(size=4)
 environment, actions_available = setup_scenario_simple()
 learn_dueling(environment, actions_available, stack, 5000)
-
+'''
 
 
 
