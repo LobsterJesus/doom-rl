@@ -57,10 +57,10 @@ def setup_scenario_my_way_home():
     return game, actions
 
 
-def save_test_image(image_data):
+def save_test_image(image_data, filename='debug/frame.png'):
     image = Image.fromarray(image_data)
-    image.save('debug/frame.png')
-    image.show()
+    image.save(filename)
+    # image.show()
 
 
 def test_scenario(environment, actions):
@@ -87,7 +87,7 @@ def learn_online(environment, actions, stack, num_episodes, max_timesteps=10000)
             dqn,
             session,
             actions,
-            board_directory='simple',
+            logger_path='debug/tf_logs/simple',
             model_path='debug/models/corridor/model_simple.ckpt',
             restore_model=False)
         environment.init()
@@ -161,7 +161,7 @@ def learn_batch(environment, actions, stack, num_episodes, max_timesteps=1000000
             dqn,
             session,
             actions,
-            board_directory='batch',
+            logger_path='debug/tf_logs/batch',
             model_path='debug/models/corridor/model_batch.ckpt',
             restore_model=True,
             epsilon_start=0.1, epsilon_stop=0.01, epsilon_decay_rate=0.0001)
@@ -213,10 +213,12 @@ def learn_dueling(environment, actions, stack, num_episodes, max_timesteps=10000
             session,
             actions,
             dqn_target=dqn_target,
-            board_directory='dueling',
-            model_path='debug/models/corridor/model_dueling.ckpt',
-            restore_model=True,
-            epsilon_start=0.1, epsilon_stop=0.1, epsilon_decay_rate=0)
+            logger_path='debug/tf_logs/corridor/dueling',
+            model_path='debug/models/corridor/model_dueling_adam_dqn.ckpt',
+            restore_model=False)
+        # epsilon_start=0.1, epsilon_stop=0.01, epsilon_decay_rate=0.0001
+        # epsilon_start=0.1, epsilon_stop=0.1, epsilon_decay_rate=0
+        # adam 1: epsilon_start=0.1, epsilon_stop=0.01, epsilon_decay_rate=0.00005
         environment.init()
 
         for e in range(num_episodes):
@@ -232,6 +234,13 @@ def learn_dueling(environment, actions, stack, num_episodes, max_timesteps=10000
                 reward = environment.make_action(action)
                 rewards.append(reward)
                 done = environment.is_episode_finished()
+
+                '''
+                if t % 10 == 0:
+                    img = environment.get_state().screen_buffer
+                    img = img_as_ubyte(frame.preprocess(img))
+                    save_test_image(img, filename='debug/frame_' + str(agent.internal_step) + '.png')
+                '''
 
                 if done:
                     stack.add(np.zeros((84, 84), dtype=np.int), process=False)
@@ -290,8 +299,8 @@ def play(environment, actions, stack, num_episodes):
             session,
             actions,
             dqn_target=dqn_target,
-            board_directory='dueling',
-            model_path='debug/models/model_dueling.ckpt',
+            logger_path='debug/tf_logs/dueling',
+            model_path='debug/models/corridor/model_dueling_adam.ckpt',
             restore_model=True,
             epsilon_start=0.0, epsilon_stop=0.0, epsilon_decay_rate=0)
         environment.init()
@@ -331,20 +340,20 @@ environment, actions_available = setup_scenario_my_way_home()
 learn_online(environment, actions_available, stack, 1000)
 '''
 
-
+'''
 # BATCH
 stack = FrameStack(size=4)
 environment, actions_available = setup_scenario_deadly_corridor()
 learn_batch(environment, actions_available, stack, num_episodes=1000)
-
-
-
 '''
+
+
+
 # DUELING
 stack = FrameStack(size=4)
 environment, actions_available = setup_scenario_deadly_corridor()
-learn_dueling(environment, actions_available, stack, num_episodes=1000, max_timesteps=1000000)
-'''
+learn_dueling(environment, actions_available, stack, num_episodes=2000, max_timesteps=1000000)
+
 
 '''
 # PLAYING WITHOUT LEARNING (AGENT)

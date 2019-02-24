@@ -101,11 +101,66 @@ class Agent:
 
         return True
 
+    def train_batch_dqn(self, batch, episode_index):
+        self.internal_step += 1
+        if self.internal_step % self.skip_frames != 0:
+            return False
+
+        states = np.array([sample[0] for sample in batch], ndmin=3)
+        actions = np.array([sample[1] for sample in batch])
+        rewards = np.array([sample[2] for sample in batch])
+        next_states = np.array([sample[3] for sample in batch], ndmin=3)
+        terminals = np.array([sample[4] for sample in batch])
+        q_values_next_state = self.get_q_values_batch(next_states)
+        q_targets = []
+        q_dqn_targets = self.session.run(self.dqn_target.output, feed_dict={self.dqn_target.inputs: next_states})
+
+        for i in range(0, len(batch)):
+            done = terminals[i]
+            action = np.argmax(q_values_next_state[i])
+
+            if done:
+                q_targets.append(rewards[i])
+            else:
+                target = rewards[i] + self.gamma * q_dqn_targets[i][action]
+                q_targets.append(target)
+                # q_targets.append(rewards[i] + self.gamma * np.max(q_values_next_state[i]))
+
+        targets_dqn = np.array([each for each in q_targets])
+
+        self.loss, _ = self.session.run(
+            [self.dqn.loss, self.dqn.optimizer],
+            feed_dict={
+                self.dqn.inputs: states,
+                self.dqn.q_target: targets_dqn,
+                self.dqn.actions: actions})
+
+        if self.log and self.timestep % 10 == 0:
+            summary = self.session.run(
+                self.merged_summary,
+                feed_dict={
+                    self.dqn.reward: 0,
+                    self.dqn.inputs: states,
+                    self.dqn.q_target: targets_dqn,
+                    self.dqn.actions: actions})
+
+            # self.tf_writer.add_summary(summary, episode_index)
+            self.tf_writer.add_summary(summary)
+            self.tf_writer.flush()
+
+        if self.timestep == 0 and episode_index > 0 and episode_index % 5 == 0:
+            print("saving model to '" + self.model_path + "'")
+            self.tf_saver.save(self.session, self.model_path)
+
+        self.timestep += 1
+
+        return True
+
     def finish_episode(self):
         self.timestep = 0
 
     def train_batch_target_network(self, batch, episode_index):
-        if self.train_batch(batch, episode_index):
+        if self.train_batch_dqn(batch, episode_index):
             self.tau += 1
             if self.tau >= self.max_tau:
                 update_target = copy_network_variables(self.dqn.name, self.dqn_target.name)
@@ -133,7 +188,7 @@ class Agent:
         self, dqn, session, actions,
         epsilon_start=1.0, epsilon_stop=0.01, epsilon_decay_rate=0.0001,
         gamma=0.95, restore_model=True, dqn_target=None,
-        board_directory='default',
+        logger_path='debug/tf_logs/default',
         model_path='debug/models/model.ckpt',
         log=False):
 
@@ -164,7 +219,7 @@ class Agent:
             tf.summary.scalar('loss', self.dqn.loss)
             tf.summary.scalar('reward', self.dqn.reward)
             self.merged_summary = tf.summary.merge_all()
-            self.tf_writer = self.setup_logger('debug/tf_logs/' + board_directory)
+            self.tf_writer = self.setup_logger(logger_path)
 
         if restore_model:
             print("restoring model '" + self.model_path + "'...")

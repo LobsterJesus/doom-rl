@@ -279,7 +279,8 @@ class DeepQNetworkDueling:
 
             self.q = tf.reduce_sum(tf.multiply(self.output, self.actions), axis=1)
             self.loss = tf.reduce_mean(tf.square(self.q_target - self.q))
-            self.optimizer = tf.train.RMSPropOptimizer(self.learning_rate).minimize(self.loss)
+            self.optimizer = tf.train.AdamOptimizer(self.learning_rate).minimize(self.loss)
+            # self.optimizer = tf.train.RMSPropOptimizer(self.learning_rate).minimize(self.loss)
 
 
 def copy_network_variables(from_name, to_name):
