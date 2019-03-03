@@ -156,17 +156,87 @@ class Agent:
 
         return True
 
+    def train_batch_dqn_per(self, memory_per, batch_size, episode_index):
+        self.internal_step += 1
+        if self.internal_step % self.skip_frames != 0:
+            return False
+
+        tree_idx, batch, is_weights = memory_per.sample(batch_size)
+
+        states = np.array([each[0][0] for each in batch], ndmin=3)
+        actions = np.array([each[0][1] for each in batch])
+        rewards = np.array([each[0][2] for each in batch])
+        next_states = np.array([each[0][3] for each in batch], ndmin=3)
+        terminals = np.array([each[0][4] for each in batch])
+
+        q_values_next_state = self.get_q_values_batch(next_states)
+        q_targets = []
+        q_dqn_targets = self.session.run(self.dqn_target.output, feed_dict={self.dqn_target.inputs: next_states})
+
+        for i in range(0, len(batch)):
+            done = terminals[i]
+            action = np.argmax(q_values_next_state[i])
+
+            if done:
+                q_targets.append(rewards[i])
+            else:
+                target = rewards[i] + self.gamma * q_dqn_targets[i][action]
+                q_targets.append(target)
+                # q_targets.append(rewards[i] + self.gamma * np.max(q_values_next_state[i]))
+
+        targets_dqn = np.array([each for each in q_targets])
+
+        self.loss, abs_errors, _ = self.session.run(
+            [self.dqn.loss, self.dqn.abs_error, self.dqn.optimizer],
+            feed_dict={
+                self.dqn.inputs: states,
+                self.dqn.q_target: targets_dqn,
+                self.dqn.actions: actions,
+                self.dqn.importance_sampling_weights: is_weights})
+
+        memory_per.update(tree_idx, abs_errors)
+
+        if self.log and self.timestep % 10 == 0:
+            summary = self.session.run(
+                self.merged_summary,
+                feed_dict={
+                    self.dqn.reward: 0,
+                    self.dqn.inputs: states,
+                    self.dqn.q_target: targets_dqn,
+                    self.dqn.actions: actions})
+
+            # self.tf_writer.add_summary(summary, episode_index)
+            self.tf_writer.add_summary(summary)
+            self.tf_writer.flush()
+
+        if self.timestep == 0 and episode_index > 0 and episode_index % 5 == 0:
+            print("saving model to '" + self.model_path + "'")
+            self.tf_saver.save(self.session, self.model_path)
+
+        self.timestep += 1
+
+        return True
+
     def finish_episode(self):
         self.timestep = 0
 
     def train_batch_target_network(self, batch, episode_index):
-        if self.train_batch_dqn(batch, episode_index):
-            self.tau += 1
+        self.tau += 1
+        if self.train_batch(batch, episode_index):
             if self.tau >= self.max_tau:
-                update_target = copy_network_variables(self.dqn.name, self.dqn_target.name)
-                self.session.run(update_target)
-                self.tau = 0
-                print("Model updated")
+                self.update_target_network()
+
+    def train_batch_target_network_per(self, memory_per, batch_size, episode_index):
+        self.tau += 1
+        if self.train_batch_dqn_per(memory_per, batch_size, episode_index):
+            if self.tau >= self.max_tau:
+                self.update_target_network()
+
+    def update_target_network(self):
+        update_target = copy_network_variables(self.dqn.name, self.dqn_target.name)
+        self.session.run(update_target)
+        self.tau = 0
+        print("Model updated")
 
     def record_episode_statistics(self, state, target, action, reward, time_step):
         summary = self.session.run(
@@ -186,8 +256,9 @@ class Agent:
 
     def __init__(
         self, dqn, session, actions,
-        epsilon_start=1.0, epsilon_stop=0.01, epsilon_decay_rate=0.0001,
+        epsilon_start=1.0, epsilon_stop=0.01, epsilon_decay_rate=0.00005,
         gamma=0.95, restore_model=True, dqn_target=None,
+        max_tau=0,
         logger_path='debug/tf_logs/default',
         model_path='debug/models/model.ckpt',
         log=False):
@@ -200,7 +271,7 @@ class Agent:
         self.loss = 0
         self.model_path = model_path
         self.tau = 0
-        self.max_tau = 30
+        self.max_tau = max_tau
         self.epsilon_start = epsilon_start
         self.epsilon_stop = epsilon_stop
         self.epsilon_decay_rate = epsilon_decay_rate
@@ -229,6 +300,7 @@ class Agent:
             self.session.run(tf.global_variables_initializer())
 
 
+'''
 class ReplayMemory:
 
     def add(self, tuple):
@@ -247,3 +319,4 @@ class ReplayMemory:
     def __init__(self, size):
         self.size = size
         self.data = deque(maxlen=size)
+'''

@@ -11,8 +11,10 @@ from frame import FrameStack
 from networks import DeepQNetworkBatch
 from networks import DeepQNetworkSimple
 from networks import DeepQNetworkDueling
+from networks import DeepQNetworkDuelingPER
 from learning import Agent
-from learning import ReplayMemory
+from experience import ReplayMemory
+from experience import ReplayMemoryPER
 
 
 def setup_scenario_simple():
@@ -150,6 +152,35 @@ def init_replay_memory(environment, actions, stack, replay_memory_capacity, num_
     return memory
 
 
+def init_replay_memory_per(environment, actions, stack, replay_memory_capacity, num_samples):
+    memory = ReplayMemoryPER(replay_memory_capacity)
+    environment.new_episode()
+    stack.init_new(environment.get_state().screen_buffer)
+    state = stack.as_state()
+    i = 0
+
+    while i < num_samples:
+        i += 1
+        action = random.choice(actions)
+        reward = environment.make_action(action)
+        done = environment.is_episode_finished()
+
+        if done:
+            stack.add(np.zeros((84, 84), dtype=np.int), process=False)
+            next_state = stack.as_state()
+            memory.add((state, action, reward, next_state, done))
+            environment.new_episode()
+            stack.init_new(environment.get_state().screen_buffer)
+            state = stack.as_state()
+        else:
+            stack.add(environment.get_state().screen_buffer)
+            next_state = stack.as_state()
+            memory.add((state, action, reward, next_state, done))
+            state = next_state
+
+    return memory
+
+
 def learn_batch(environment, actions, stack, num_episodes, max_timesteps=1000000):
     num_actions = len(actions)
     dqn = DeepQNetworkBatch([84, 84, 4], num_actions, 0.0002)
@@ -202,10 +233,11 @@ def learn_batch(environment, actions, stack, num_episodes, max_timesteps=1000000
 
 def learn_dueling(environment, actions, stack, num_episodes, max_timesteps=1000000):
     num_actions = len(actions)
-    dqn = DeepQNetworkDueling([84, 84, 4], num_actions, 0.0002, name='DuelingDeepQNetwork')
-    dqn_target = DeepQNetworkDueling([84, 84, 4], num_actions, 0.0002, name='TargetDuelingDeepQNetwork')
+    dqn = DeepQNetworkDuelingPER([84, 84, 4], num_actions, 0.00025, name='DuelingDeepQNetworkPER')
+    dqn_target = DeepQNetworkDuelingPER([84, 84, 4], num_actions, 0.00025, name='TargetDuelingDeepQNetworkPER')
     print("Initializing replay memory")
-    replay_memory = init_replay_memory(environment, actions, stack, 1000000, 64)
+    # replay_memory = init_replay_memory_per(environment, actions, stack, 1000000, 64)
+    replay_memory = init_replay_memory_per(environment, actions, stack, 10000, 64)
     print("Replay memory initialization done. Start training...")
     with tf.Session() as session:
         agent = Agent(
@@ -213,9 +245,12 @@ def learn_dueling(environment, actions, stack, num_episodes, max_timesteps=10000
             session,
             actions,
             dqn_target=dqn_target,
+            max_tau=1000,
             logger_path='debug/tf_logs/corridor/dueling',
-            model_path='debug/models/corridor/model_dueling_adam_dqn.ckpt',
-            restore_model=False)
+            model_path='debug/models/corridor/model_dueling_adam_dqn_per5.ckpt',
+            restore_model=True,
+            epsilon_start=0.00, epsilon_stop=0.00, epsilon_decay_rate=0)
+        # epsilon_start=0.01, epsilon_stop=0.01, epsilon_decay_rate=0
         # epsilon_start=0.1, epsilon_stop=0.01, epsilon_decay_rate=0.0001
         # epsilon_start=0.1, epsilon_stop=0.1, epsilon_decay_rate=0
         # adam 1: epsilon_start=0.1, epsilon_stop=0.01, epsilon_decay_rate=0.00005
@@ -256,10 +291,12 @@ def learn_dueling(environment, actions, stack, num_episodes, max_timesteps=10000
                     replay_memory.add((state, action, reward, next_state, done))
                     state = next_state
 
-                agent.train_batch_target_network(replay_memory.sample(64), e)
+                # agent.train_batch_target_network(replay_memory.sample(64), e)
+                agent.train_batch_target_network_per(replay_memory, 64, e)
+                # tree_idx, batch, ISWeights_mb = memory.sample(batch_size)
+
                 if done:
                     agent.finish_episode()
-
 
 def play_as_human():
     game = DoomGame()
@@ -291,8 +328,8 @@ def play_as_human():
 
 def play(environment, actions, stack, num_episodes):
     num_actions = len(actions)
-    dqn = DeepQNetworkDueling([84, 84, 4], num_actions, 0.0002, name='DuelingDeepQNetwork')
-    dqn_target = DeepQNetworkDueling([84, 84, 4], num_actions, 0.0002, name='TargetDuelingDeepQNetwork')
+    dqn = DeepQNetworkDueling([84, 84, 4], num_actions, 0.00025, name='DuelingDeepQNetworkPER')
+    dqn_target = DeepQNetworkDueling([84, 84, 4], num_actions, 0.00025, name='TargetDuelingDeepQNetworkPER')
     with tf.Session() as session:
         agent = Agent(
             dqn,
@@ -300,7 +337,7 @@ def play(environment, actions, stack, num_episodes):
             actions,
             dqn_target=dqn_target,
             logger_path='debug/tf_logs/dueling',
-            model_path='debug/models/corridor/model_dueling_adam.ckpt',
+            model_path='debug/models/corridor/model_dueling_adam_dqn_per4.ckpt',
             restore_model=True,
             epsilon_start=0.0, epsilon_stop=0.0, epsilon_decay_rate=0)
         environment.init()
@@ -348,8 +385,8 @@ learn_batch(environment, actions_available, stack, num_episodes=1000)
 '''
 
 
-
 # DUELING
+
 stack = FrameStack(size=4)
 environment, actions_available = setup_scenario_deadly_corridor()
 learn_dueling(environment, actions_available, stack, num_episodes=2000, max_timesteps=1000000)
