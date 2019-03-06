@@ -397,8 +397,8 @@ class DeepQNetworkDuelingPER:
             self.q = tf.reduce_sum(tf.multiply(self.output, self.actions), axis=1)
             self.abs_error = tf.abs(self.q_target - self.q)
             self.loss = tf.reduce_mean(self.importance_sampling_weights * tf.squared_difference(self.q_target, self.q))
-            # self.optimizer = tf.train.AdamOptimizer(self.learning_rate).minimize(self.loss)
-            self.optimizer = tf.train.RMSPropOptimizer(self.learning_rate).minimize(self.loss)
+            self.optimizer = tf.train.AdamOptimizer(self.learning_rate).minimize(self.loss)
+            # self.optimizer = tf.train.RMSPropOptimizer(self.learning_rate).minimize(self.loss)
 
 
 def copy_network_variables(from_name, to_name):

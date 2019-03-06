@@ -30,9 +30,11 @@ class Agent:
     def get_q_values_batch(self, state_batch):
         return self.session.run(self.dqn.output, feed_dict={self.dqn.inputs: state_batch})
 
-    # todo: use internal timestep
-    def train(self, state, action, reward, next_state, time_step, terminal=False):
-        self.timestep += 1
+    def train(self, state, action, reward, next_state, time_step, episode_index, terminal=False):
+        self.internal_step += 1
+        if self.internal_step % self.skip_frames != 0:
+            return False
+
         q_values = self.session.run(self.dqn.output, feed_dict={self.dqn.inputs: state.reshape((1, *state.shape))})
         q_values_next = self.session.run(self.dqn.output, feed_dict={self.dqn.inputs: next_state.reshape((1, *next_state.shape))})
 
@@ -41,7 +43,7 @@ class Agent:
             if v == 1:
                 target[i] = (reward + self.gamma * np.max(q_values_next)) if not terminal else reward
 
-        if terminal:
+        if self.log and terminal:
             self.record_episode_statistics(state, target, action, reward, time_step)
 
         self.loss, _ = self.session.run(
@@ -50,6 +52,12 @@ class Agent:
                 self.dqn.inputs: state.reshape((1, *state.shape)),
                 self.dqn.q_target: target,
                 self.dqn.actions: [action]})
+
+        if self.timestep == 0 and episode_index > 0 and episode_index % 10 == 0:
+            print("saving model to '" + self.model_path + "'")
+            self.tf_saver.save(self.session, self.model_path)
+
+        self.timestep += 1
 
     def train_batch(self, batch, episode_index):
         self.internal_step += 1
@@ -171,7 +179,11 @@ class Agent:
 
         q_values_next_state = self.get_q_values_batch(next_states)
         q_targets = []
-        q_dqn_targets = self.session.run(self.dqn_target.output, feed_dict={self.dqn_target.inputs: next_states})
+
+        if self.dqn_target is not None:
+            q_dqn_targets = self.session.run(self.dqn_target.output, feed_dict={self.dqn_target.inputs: next_states})
+        else:
+            q_dqn_targets = self.session.run(self.dqn.output, feed_dict={self.dqn.inputs: next_states})
 
         for i in range(0, len(batch)):
             done = terminals[i]
