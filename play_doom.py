@@ -478,12 +478,17 @@ def learn_dueling_target(environment, actions, stack, num_episodes, max_timestep
 
 def learn_dueling_target_per(environment, actions, stack, num_episodes, max_timesteps=1000000):
     num_actions = len(actions)
-    dqn = DeepQNetworkDuelingPER([84, 84, 4], num_actions, 0.00025, name='DuelingDeepQNetworkPER')
-    dqn_target = DeepQNetworkDuelingPER([84, 84, 4], num_actions, 0.00025, name='TargetDuelingDeepQNetworkPER')
+    dqn = DeepQNetworkDuelingPER([84, 84, 4], num_actions, 0.00025, name='DuelingDeepQNetworkPERRMS')
+    dqn_target = DeepQNetworkDuelingPER([84, 84, 4], num_actions, 0.00025, name='TargetDuelingDeepQNetworkPERRMS')
     print("Initializing replay memory")
     replay_memory = init_replay_memory_per(environment, actions, stack, 10000, 64)
     print("Replay memory initialization done. Start training...")
-    with tf.Session() as session:
+
+    config = tf.ConfigProto()
+    config.gpu_options.allow_growth = True
+
+    # with tf.Session(config=config) as session:
+    with tf.Session(config=config) as session:
         agent = Agent(
             dqn,
             session,
@@ -491,9 +496,9 @@ def learn_dueling_target_per(environment, actions, stack, num_episodes, max_time
             dqn_target=dqn_target,
             max_tau=1000,
             logger_path='debug/tf_logs/' + SCENARIO + '/dueling',
-            model_path='debug/models/' + SCENARIO + '/dueling_rms_target_per.ckpt',
+            model_path='debug/models/' + SCENARIO + '/dueling_adam_target_per.ckpt',
             restore_model=True,
-            epsilon_start=0.01, epsilon_stop=0.01, epsilon_decay_rate=0)
+            epsilon_start=0, epsilon_stop=0, epsilon_decay_rate=0)
         # epsilon_start=0, epsilon_stop=0, epsilon_decay_rate=0
         environment.init()
 
@@ -506,8 +511,7 @@ def learn_dueling_target_per(environment, actions, stack, num_episodes, max_time
 
             while t < max_timesteps:
                 t += 1
-                # action = agent.get_policy_action(state, use_target_network=True)
-                action = agent.get_policy_action(state, use_target_network=False)
+                action = agent.get_policy_action(state)
                 reward = environment.make_action(action)
                 rewards.append(reward)
                 done = environment.is_episode_finished()
@@ -534,6 +538,7 @@ def learn_dueling_target_per(environment, actions, stack, num_episodes, max_time
                     state = next_state
 
                 # agent.train_batch_target_network_per(replay_memory, 64, e)
+                time.sleep(1 / 60)
 
                 if done:
                     agent.finish_episode()
@@ -589,7 +594,7 @@ def play(environment, actions, stack, num_episodes):
             state = stack.as_state()
             while True:
                 t += 1
-                action = agent.get_policy_action(state, use_target_network=True)
+                action = agent.get_policy_action(state)
                 reward = environment.make_action(action)
                 rewards.append(reward)
                 done = environment.is_episode_finished()
@@ -634,23 +639,33 @@ environment, actions_available = setup_scenario_simple()
 learn_dueling(environment, actions_available, stack, num_episodes=100, max_timesteps=1000000)
 '''
 
-
+'''
 # DUELING PER (NO TARGET NETWORK)
 stack = FrameStack(size=4)
 environment, actions_available = setup_scenario_deadly_corridor()
 learn_dueling_per(environment, actions_available, stack, num_episodes=2000, max_timesteps=1000000)
-
-
 '''
+
+
 # DUELING PER + TARGET NETWORK
 stack = FrameStack(size=4)
-environment, actions_available = setup_scenario_defend_the_center()
-learn_dueling_target_per(environment, actions_available, stack, num_episodes=50, max_timesteps=1000000)
-'''
+environment, actions_available = setup_scenario_deadly_corridor()
+learn_dueling_target_per(environment, actions_available, stack, num_episodes=100, max_timesteps=1000000)
+
 
 '''
 # PLAYING WITHOUT LEARNING (AGENT)
 stack = FrameStack(size=4)
 environment, actions_available = setup_scenario_deadly_corridor()
 play(environment, actions_available, stack, 1000)
+'''
+
+'''
+# VISUALIZE
+dqn = DeepQNetworkDueling([84, 84, 4], 5, 0.00025)
+writer = tf.summary.FileWriter('dueling_network_vis')
+writer.add_graph(tf.get_default_graph())
+init = tf.global_variables_initializer()
+with tf.Session() as sess:
+    sess.run(init)
 '''

@@ -8,6 +8,21 @@ from networks import copy_network_variables
 
 class Agent:
 
+    def get_policy_action(self, state):
+        # Use exponential epsilon decay for exploration/exploitation strategy
+        self.exploration_probability = \
+            self.epsilon_stop + (self.epsilon_start - self.epsilon_stop) * np.exp(-self.epsilon_decay_rate * self.internal_step)
+
+        if self.exploration_probability < np.random.rand():
+            q_values = self.session.run(
+                self.dqn.output,
+                feed_dict={self.dqn.inputs: state.reshape((1, *state.shape))})
+            choice = np.argmax(q_values)
+            return self.actions[int(choice)]
+        else:
+            return random.choice(self.actions)
+
+    '''
     def get_policy_action(self, state, use_target_network=False):
         # Use exponential epsilon decay for exploration/exploitation strategy
         self.exploration_probability = \
@@ -26,6 +41,7 @@ class Agent:
             return self.actions[int(choice)]
         else:
             return random.choice(self.actions)
+    '''
 
     def get_q_values_batch(self, state_batch):
         return self.session.run(self.dqn.output, feed_dict={self.dqn.inputs: state_batch})
